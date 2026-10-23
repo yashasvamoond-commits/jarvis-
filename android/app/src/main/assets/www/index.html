@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#070b12">
+<meta name="description" content="Legal Jarvis — a private, on-device chamber assistant for advocates.">
+<title>Legal Jarvis</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="img/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="ambient" aria-hidden="true">
+  <div class="ambient-orb a"></div>
+  <div class="ambient-orb b"></div>
+  <div class="ambient-grid"></div>
+</div>
+
+<div id="app">
+  <aside class="rail" aria-label="Primary">
+    <div class="brand" title="Legal Jarvis">
+      <div class="brand-mark"><span></span></div>
+      <div class="brand-name">LEGAL<br>JARVIS</div>
+    </div>
+
+    <nav class="rail-nav">
+      <button class="rail-btn is-active" data-nav="command" data-label="Command">
+        <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9 9 9 0 0 0-9-9Zm0 3.2 1.6 4.2 4.2 1.6-4.2 1.6L12 17.8l-1.6-4.2L6.2 12l4.2-1.6Z"/></svg>
+        <span>Command</span>
+      </button>
+      <button class="rail-btn" data-nav="overview" data-label="Overview">
+        <svg viewBox="0 0 24 24"><path d="M4 13h7V4H4v9Zm0 7h7v-5H4v5Zm9 0h7V11h-7v9Zm0-16v5h7V4h-7Z"/></svg>
+        <span>Overview</span>
+      </button>
+      <button class="rail-btn" data-nav="matters" data-label="Matters">
+        <svg viewBox="0 0 24 24"><path d="M6 3h9l5 5v13H6V3Zm8 1.5V9h4.5L14 4.5ZM8 12h8v1.8H8V12Zm0 4h8v1.8H8V16Z"/></svg>
+        <span>Matters</span>
+      </button>
+      <button class="rail-btn" data-nav="diary" data-label="Diary">
+        <svg viewBox="0 0 24 24"><path d="M7 2h2v2h6V2h2v2h3v18H4V4h3V2Zm13 7H6v11h14V9Zm-9 3h2v2h-2v-2Zm4 0h2v2h-2v-2Zm-4 4h2v2h-2v-2Z"/></svg>
+        <span>Diary</span>
+      </button>
+      <button class="rail-btn" data-nav="documents" data-label="Documents">
+        <svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6Zm3 4v2h12v-2H6Zm0 4v2h8v-2H6Z"/></svg>
+        <span>Documents</span>
+      </button>
+    </nav>
+
+    <div class="rail-foot">
+      <button class="rail-btn" data-nav="settings" data-label="Settings" title="Settings">
+        <svg viewBox="0 0 24 24"><path d="M12 8.5A3.5 3.5 0 1 0 15.5 12 3.5 3.5 0 0 0 12 8.5Zm9 3.5a8.9 8.9 0 0 0-.1-1.3l2-1.6-2-3.4-2.4 1a9.3 9.3 0 0 0-2.3-1.3L15.8 3h-3.9l-.4 2.4a9.3 9.3 0 0 0-2.3 1.3l-2.4-1-2 3.4 2 1.6a8.9 8.9 0 0 0 0 2.6l-2 1.6 2 3.4 2.4-1a9.3 9.3 0 0 0 2.3 1.3l.4 2.4h3.9l.4-2.4a9.3 9.3 0 0 0 2.3-1.3l2.4 1 2-3.4-2-1.6A8.9 8.9 0 0 0 21 12Z"/></svg>
+        <span>Setup</span>
+      </button>
+    </div>
+  </aside>
+
+  <div class="workspace">
+    <header class="topbar">
+      <div class="topbar-title">
+        <p class="eyebrow" id="viewEyebrow">Chamber console</p>
+        <h1 id="viewTitle">Command</h1>
+      </div>
+      <div class="topbar-tools">
+        <div class="clock" id="clock" aria-live="off">
+          <span id="clockTime">--:--</span>
+          <small id="clockDate">—</small>
+        </div>
+        <div class="segmented lang-seg" id="langToggle" role="group" aria-label="Language">
+          <button data-langmode="en" title="English">EN</button>
+          <button data-langmode="auto" title="Auto — Hindi only for Hindi files">AUTO</button>
+          <button data-langmode="hi" title="हिंदी">हिं</button>
+        </div>
+        <button class="icon-btn" id="speakToggle" data-action="toggle-speak" title="Voice output" aria-pressed="true">
+          <svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4V9Zm12.5-1.7a6.5 6.5 0 0 1 0 9.4l-1.4-1.4a4.5 4.5 0 0 0 0-6.6l1.4-1.4Zm2.8-2.8a10.5 10.5 0 0 1 0 15l-1.4-1.4a8.5 8.5 0 0 0 0-12.2l1.4-1.4Z"/></svg>
+        </button>
+        <button class="icon-btn mic-btn" data-action="listen" title="Speak to Jarvis">
+          <svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V22h2v-3.1A7 7 0 0 0 19 12h-2Z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="views" id="views">
+      <section class="view is-active" id="view-command" aria-labelledby="viewTitle">
+        <div class="command-grid">
+          <aside class="stage">
+            <div class="reactor" id="reactor" data-state="idle" aria-hidden="true">
+              <div class="reactor-ring r1"></div>
+              <div class="reactor-ring r2"></div>
+              <div class="reactor-ring r3"></div>
+              <div class="reactor-core"><span class="core-dot"></span></div>
+              <div class="reactor-scan"></div>
+            </div>
+            <div class="stage-copy">
+              <p class="stage-greet" id="stageGreet">Good evening, Sir.</p>
+              <p class="stage-status" id="stageStatus">Systems nominal. The chamber register is at your service.</p>
+            </div>
+            <div class="stage-stats" id="stageStats"></div>
+            <div class="stage-chips" id="stageChips"></div>
+            <button class="talk-btn" data-action="listen">
+              <span class="talk-ripple"></span>
+              <svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V22h2v-3.1A7 7 0 0 0 19 12h-2Z"/></svg>
+              <span>Speak to Jarvis</span>
+            </button>
+            <p class="stage-hint" id="stageHint">Tap the microphone, or type below. English &amp; हिंदी.</p>
+          </aside>
+
+          <section class="thread-panel" aria-label="Conversation">
+            <div class="thread-head">
+              <div class="thread-id">
+                <span class="pulse-dot"></span>
+                <div>
+                  <strong>J.A.R.V.I.S.</strong>
+                  <small>Just A Rather Very Intelligent System · Chamber edition</small>
+                </div>
+              </div>
+              <button class="ghost-btn small" data-action="clear-chat">Clear</button>
+            </div>
+            <div class="thread" id="thread" aria-live="polite"></div>
+            <div class="thread-compose">
+              <div class="compose-row">
+                <button class="compose-mic" data-action="listen" title="Dictate">
+                  <svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V22h2v-3.1A7 7 0 0 0 19 12h-2Z"/></svg>
+                </button>
+                <input id="commandInput" type="text" autocomplete="off" placeholder="Ask about a matter, a date, or a document…" aria-label="Command">
+                <button class="send-btn" data-action="send-command" title="Send">
+                  <svg viewBox="0 0 24 24"><path d="m3 20 18-8L3 4v6l12 2-12 2v6Z"/></svg>
+                </button>
+              </div>
+              <p class="compose-note">Voice command examples: “Pull up the latest reply in the Sharma case” · “शर्मा मामले का नवीनतम जवाब दिखाइए”</p>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="view" id="view-overview" aria-labelledby="viewTitle">
+        <div id="overviewBody" class="view-body"></div>
+      </section>
+
+      <section class="view" id="view-matters" aria-labelledby="viewTitle">
+        <div class="view-body">
+          <div class="toolbar">
+            <div class="search-field">
+              <svg viewBox="0 0 24 24"><path d="M10 3a7 7 0 1 0 4.4 12.4l5.3 5.3 1.4-1.4-5.3-5.3A7 7 0 0 0 10 3Zm0 2a5 5 0 1 1 0 10 5 5 0 0 1 0-10Z"/></svg>
+              <input id="matterSearch" type="search" placeholder="Search matter, client, court, CNR…" aria-label="Search matters">
+            </div>
+            <select id="matterFilter" class="select" aria-label="Filter matters">
+              <option value="active">Active</option>
+              <option value="all">All matters</option>
+              <option value="disposed">Disposed</option>
+              <option value="week">Listed this week</option>
+            </select>
+            <button class="primary-btn" data-action="new-case">
+              <span class="plus">+</span> New matter
+            </button>
+          </div>
+          <div id="mattersBody" class="matter-list"></div>
+        </div>
+      </section>
+
+      <section class="view" id="view-diary" aria-labelledby="viewTitle">
+        <div class="view-body">
+          <div class="toolbar">
+            <div class="segmented tabs" id="diaryTabs" role="tablist">
+              <button data-tab="upcoming" class="is-active" role="tab">Cause list</button>
+              <button data-tab="calendar" role="tab">Calendar</button>
+              <button data-tab="reminders" role="tab">Reminders</button>
+            </div>
+            <span class="toolbar-spacer"></span>
+            <button class="ghost-btn" data-action="new-reminder">+ Reminder</button>
+            <button class="primary-btn" data-action="new-hearing">+ Hearing date</button>
+          </div>
+          <div id="diaryBody"></div>
+        </div>
+      </section>
+
+      <section class="view" id="view-documents" aria-labelledby="viewTitle">
+        <div class="view-body">
+          <div class="doc-actions">
+            <button class="primary-btn" data-action="import-files">
+              <svg viewBox="0 0 24 24"><path d="M11 16h2v-5h3l-4-4-4 4h3v5Zm-7 3h16v2H4v-2Z"/></svg>
+              Import documents
+            </button>
+            <button class="ghost-btn" data-action="import-folder">Import a folder</button>
+            <button class="ghost-btn" data-action="import-drive" title="Google Drive appears in the Android file picker">From Google Drive</button>
+            <button class="ghost-btn" data-action="import-ecourts">e-Courts data</button>
+            <span class="toolbar-spacer"></span>
+            <span class="storage-note" id="docStorageNote"></span>
+          </div>
+          <div class="toolbar doc-toolbar">
+            <div class="search-field">
+              <svg viewBox="0 0 24 24"><path d="M10 3a7 7 0 1 0 4.4 12.4l5.3 5.3 1.4-1.4-5.3-5.3A7 7 0 0 0 10 3Zm0 2a5 5 0 1 1 0 10 5 5 0 0 1 0-10Z"/></svg>
+              <input id="docSearch" type="search" placeholder="Search within the archive…" aria-label="Search documents">
+            </div>
+            <select id="docCourtFilter" class="select" aria-label="Filter by court"><option value="">All courts</option></select>
+            <select id="docTypeFilter" class="select" aria-label="Filter by type"><option value="">All types</option></select>
+            <div class="segmented view-seg" id="docGroupToggle">
+              <button data-group="case" class="is-active" title="Case-wise">Case</button>
+              <button data-group="court" title="Court-wise">Court</button>
+              <button data-group="date" title="Newest first">Recent</button>
+            </div>
+          </div>
+          <div id="documentsBody"></div>
+        </div>
+      </section>
+
+      <section class="view" id="view-settings" aria-labelledby="viewTitle">
+        <div class="view-body" id="settingsBody"></div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<div class="hud" id="hud" hidden>
+  <div class="hud-inner">
+    <div class="hud-wave" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+    <p class="hud-title" id="hudTitle">Listening…</p>
+    <p class="hud-text" id="hudText">Speak now, Sir.</p>
+    <div class="hud-lang segmented">
+      <button id="hudLangEn" data-lang="en-IN">ENGLISH</button>
+      <button id="hudLangHi" data-lang="hi-IN">हिंदी</button>
+    </div>
+    <div class="hud-actions">
+      <button class="ghost-btn" data-action="close-hud">Cancel</button>
+      <button class="primary-btn" data-action="stop-listen">Done</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-root" id="modalRoot" hidden></div>
+<div class="toast-root" id="toastRoot" aria-live="polite"></div>
+
+<script src="vendor/pdf.min.js"></script>
+<script src="vendor/mammoth.browser.min.js"></script>
+<script src="js/store.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/bridge.js"></script>
+<script src="js/documents.js"></script>
+<script src="js/jarvis.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/views.js"></script>
+<script src="js/docsui.js"></script>
+<script src="js/setupui.js"></script>
+</body>
+</html>

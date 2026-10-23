@@ -1,0 +1,15 @@
+# Android build outputs
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+dist/
+*.apk
+*.apk.idsig
+*.iml
+.idea/
+.gradle/
+
+# Local test artefacts
+node_modules/
+*.log
