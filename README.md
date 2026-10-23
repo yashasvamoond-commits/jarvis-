@@ -11,7 +11,7 @@ A 24/7, on-device legal assistant for the chamber: it files your PDF and Word pa
 3. Open the downloaded file. Android will ask permission to install from this source — allow it, then tap **Install**.
 4. On first launch, grant **microphone** and **notification** permission when asked. Both are used only by Jarvis itself.
 
-> The APK is rebuilt automatically by GitHub Actions on every push. The download link never changes.
+> The APK is rebuilt automatically by GitHub Actions on every push. The download link never changes, and each build is signed with the same chamber key and a higher version code, so a new download installs straight over the previous one without touching your records.
 
 ## The chamber at a glance
 
@@ -36,6 +36,10 @@ Jarvis uses the Android Text-to-Speech engine. For the most convincing British t
 - Imported papers are copied into `Android/data/com.legaljarvis.chamber/files/LegalJarvis/Archive/<court>/<case>/<type>/`.
 - Backups are written only where you choose.
 - Speech recognition is provided by the Android service on the tablet; the archive itself is never transmitted.
+
+## Signing
+
+The build uses the chamber's own signing key (`android/keystore/legaljarvis.p12`, password `legaljarvis`). The key is committed deliberately so that successive sideloaded builds remain installable as updates. It is not a Play Store key; treat it as a local convenience key rather than a secret.
 
 ## Build locally
 

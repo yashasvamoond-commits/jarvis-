@@ -38,6 +38,10 @@ import android.webkit.WebViewClient;
 import android.widget.Toast;
 
 import androidx.core.content.FileProvider;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.webkit.WebViewAssetLoader;
 
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader;
@@ -149,6 +153,21 @@ public class MainActivity extends Activity {
         s.setJavaScriptCanOpenWindowsAutomatically(false);
         setContentView(webView);
         webView.setBackgroundColor(0xFF070B12);
+
+        /* Draw edge to edge, then keep the console clear of the status bar,
+           the navigation bar and the keyboard. Necessary on Android 15,
+           where edge-to-edge is enforced for apps targeting SDK 35. */
+        try {
+            WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+            ViewCompat.setOnApplyWindowInsetsListener(webView, (v, insets) -> {
+                Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars()
+                        | WindowInsetsCompat.Type.displayCutout());
+                Insets ime = insets.getInsets(WindowInsetsCompat.Type.ime());
+                v.setPadding(bars.left, bars.top, bars.right, Math.max(bars.bottom, ime.bottom));
+                return insets;
+            });
+            ViewCompat.requestApplyInsets(webView);
+        } catch (Exception ignored) {}
 
         assetLoader = new WebViewAssetLoader.Builder()
                 .setDomain(HOST)

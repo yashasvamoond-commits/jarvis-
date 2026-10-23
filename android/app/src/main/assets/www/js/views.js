@@ -543,6 +543,12 @@
         kind: v('tfKind'), due: v('tfDue'), priority: v('tfPriority')
       });
       await Repo.saveTask(rec);
+      if (rec.due && S.get('notifications') !== false) {
+        const at = new Date(rec.due + 'T09:00:00').getTime();
+        if (at > Date.now()) {
+          Bridge.scheduleAlarm({ id: 'task_' + rec.id, date: rec.due, time: '09:00', title: 'Task: ' + rec.title, kind: 'task' }).catch(() => {});
+        }
+      }
       App.closeTopSheet();
       App.renderAll();
       App.toast(existing ? 'Task updated.' : 'Task added to the chamber desk.', 'ok');

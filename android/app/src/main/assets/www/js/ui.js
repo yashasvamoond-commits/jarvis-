@@ -543,7 +543,7 @@
       if (reply.triggerImport) setTimeout(() => App.startImport('files'), 500);
       const speakPromise = (reply.silent || App.muted) ? Promise.resolve() : J.speakReply(reply);
       if (reply.openDoc) {
-        speakPromise.then(() => LJ.DocsUI.open(reply.openDoc));
+        setTimeout(() => { try { LJ.DocsUI.open(reply.openDoc); } catch (e) { console.warn(e); } }, 520);
       }
       if (reply.openAddCase) setTimeout(() => LJ.Views.openCaseForm(null, false, reply.openAddCase), 420);
       if (reply.openHearing) setTimeout(() => LJ.Views.openHearingForm(reply.openHearing.matterId, reply.openHearing), 420);
@@ -1055,11 +1055,19 @@
     /* ---------------- tasks & reminders ---------------- */
     async markTaskDone(id) {
       const t = await Repo.toggleTask(id, true);
+      if (t) { try { await Bridge.cancelAlarm('task_' + t.id); } catch (e) {} }
       App.renderAll();
       if (t) App.toast('Done: ' + t.title, 'ok');
     },
     async toggleTask(id) {
       const t = await Repo.toggleTask(id);
+      if (t && t.done) { try { await Bridge.cancelAlarm('task_' + t.id); } catch (e) {} }
+      else if (t && t.due) {
+        try {
+          const at = new Date(t.due + 'T09:00:00').getTime();
+          if (at > Date.now()) await Bridge.scheduleAlarm({ id: 'task_' + t.id, date: t.due, time: '09:00', title: 'Task: ' + t.title, kind: 'task' });
+        } catch (e) {}
+      }
       App.renderAll();
     },
 
@@ -1355,7 +1363,7 @@
 
     async doDelete(kind, id) {
       if (kind === 'hearing') await Repo.deleteHearing(id);
-      else if (kind === 'task') await Repo.remove('tasks', id);
+      else if (kind === 'task') { await Repo.remove('tasks', id); try { await Bridge.cancelAlarm('task_' + id); } catch (e) {} }
       else if (kind === 'reminder') {
         await Repo.remove('reminders', id);
         await Bridge.cancelAlarm(id);
@@ -1378,6 +1386,10 @@
     },
 
     async doDeleteMatter(id) {
+      try {
+        for (const t of Repo.data.tasks.filter(x => x.matterId === id)) await Bridge.cancelAlarm('task_' + t.id);
+        for (const r of Repo.data.reminders.filter(x => x.matterId === id)) await Bridge.cancelAlarm(r.id);
+      } catch (e) {}
       await Repo.deleteMatter(id);
       App.closeTopSheet();
       App.renderAll();

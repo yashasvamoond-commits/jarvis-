@@ -6,11 +6,22 @@ android {
     namespace 'com.legaljarvis.chamber'
     compileSdk 35
 
+    signingConfigs {
+        jarvis {
+            storeFile file('../keystore/legaljarvis.p12')
+            storePassword 'legaljarvis'
+            keyAlias 'legaljarvis'
+            keyPassword 'legaljarvis'
+            storeType 'PKCS12'
+        }
+    }
+
     defaultConfig {
         applicationId "com.legaljarvis.chamber"
         minSdk 26
         targetSdk 35
-        versionCode 1
+        // Each CI build gets a higher version code so the tablet accepts it as an update.
+        versionCode 1 + ((System.getenv('GITHUB_RUN_NUMBER') ?: '0') as Integer)
         versionName "1.0.0"
         resConfigs "en", "hi"
     }
@@ -18,11 +29,13 @@ android {
     buildTypes {
         release {
             minifyEnabled false
+            signingConfig signingConfigs.jarvis
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
         debug {
             applicationIdSuffix ".debug"
             versionNameSuffix "-debug"
+            signingConfig signingConfigs.jarvis
         }
     }
 

@@ -418,7 +418,8 @@
       if (hindiDoc) {
         blocks.push({ lang: 'hi', text: hindiDocLine(d, m) });
       }
-      return Jarvis.reply(blocks, actions, { focusDocId: d.id, openDoc: opts.open ? d.id : null });
+      const wantsOpen = opts.open || /\b(open|pull up|bring up|show me|display|let me see|kholo|khol|dikhao|dikha|दिखाओ|खोलो|खोल)\b/i.test(String(query));
+      return Jarvis.reply(blocks, actions, { focusDocId: d.id, openDoc: wantsOpen ? d.id : null });
     },
 
     docListReply(query) {
@@ -562,7 +563,12 @@
         blocks.push({ text: '• **' + (r.title || 'Reminder') + '** — ' + I.date(r.date, { weekday: true }) + (m ? ' · ' + m.title : '') });
       });
       if (pendingProcs.length) blocks.push({ text: '**Procedural compliances still open.** ' + pendingProcs.slice(0, 4).map(t => t.title + (t.due ? ' (' + I.date(t.due, { weekday: false }) + ')' : '')).join('; ') + '.' });
-      return Jarvis.reply(blocks, [{ label: 'Add reminder', act: 'new-reminder' }, { label: 'Open diary', act: 'diary' }]);
+      const quick = soon.slice(0, 2).map(r => ({
+        label: 'Remind me: ' + (r.title || 'deadline'),
+        act: 'new-reminder',
+        prefill: { title: r.title || 'Deadline', date: r.date, time: r.time || '09:00', matterId: r.matterId || null, kind: 'limitation' }
+      }));
+      return Jarvis.reply(blocks, quick.concat([{ label: 'Add reminder', act: 'new-reminder' }, { label: 'Open diary', act: 'diary' }]));
     },
 
     draftSummary() {

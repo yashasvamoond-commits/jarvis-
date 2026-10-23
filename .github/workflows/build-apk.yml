@@ -55,10 +55,10 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Build debug APK
+      - name: Build signed APK
         run: |
           set -o pipefail
-          gradle -p android assembleDebug --no-daemon --console=plain 2>&1 | tee build.log
+          gradle -p android assembleRelease --no-daemon --console=plain 2>&1 | tee build.log
 
       - name: Surface build errors
         if: failure()
@@ -70,11 +70,23 @@ jobs:
           echo "---- tail ----"
           tail -50 build.log
 
-      - name: Name the APK
+      - name: Name and verify the APK
         run: |
+          set -e
           mkdir -p dist
-          cp android/app/build/outputs/apk/debug/app-debug.apk dist/Legal-Jarvis.apk
+          cp android/app/build/outputs/apk/release/app-release.apk dist/Legal-Jarvis.apk
           ls -lh dist/Legal-Jarvis.apk
+          unzip -l dist/Legal-Jarvis.apk | grep -q "assets/www/index.html" || { echo "::error::The web console is missing from the APK"; exit 1; }
+          unzip -l dist/Legal-Jarvis.apk | grep -q "assets/www/vendor/pdf.min.js" || { echo "::error::The PDF reader is missing from the APK"; exit 1; }
+          TOOLS="$ANDROID_SDK_ROOT/build-tools"
+          AAPT2="$(find "$TOOLS" -name aapt2 -type f | sort | tail -n 1)"
+          APKSIGNER="$(find "$TOOLS" -name apksigner -type f | sort | tail -n 1)"
+          "$AAPT2" dump badging dist/Legal-Jarvis.apk | head -n 3
+          "$APKSIGNER" verify --print-certs dist/Legal-Jarvis.apk | head -n 6
+          BADGING="$("$AAPT2" dump badging dist/Legal-Jarvis.apk | head -n 1)"
+          SIGNER="$("$APKSIGNER" verify --print-certs dist/Legal-Jarvis.apk | grep -m1 'SHA-256')"
+          echo "::notice::APK $BADGING"
+          echo "::notice::Signer $SIGNER"
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
