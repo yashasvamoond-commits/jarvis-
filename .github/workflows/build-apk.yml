@@ -13,7 +13,7 @@ permissions:
 jobs:
   apk:
     name: Build installable APK
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,13 +25,30 @@ jobs:
           java-version: '17'
           cache: gradle
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install platform and build tools
+      - name: Prepare Android SDK
         run: |
-          yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+          set -e
+          SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          if [ -z "$SDK" ] || [ ! -d "$SDK" ]; then
+            SDK="$HOME/android-sdk"
+            mkdir -p "$SDK/cmdline-tools"
+            curl -fsSL -o /tmp/android-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+            unzip -q /tmp/android-tools.zip -d "$SDK/cmdline-tools"
+            mv "$SDK/cmdline-tools/cmdline-tools" "$SDK/cmdline-tools/latest"
+          fi
+          TOOLS="$SDK/cmdline-tools/latest/bin"
+          if [ ! -x "$TOOLS/sdkmanager" ]; then
+            TOOLS="$(dirname "$(find "$SDK" -name sdkmanager -type f | head -n 1)")"
+          fi
+          echo "Using SDK: $SDK"
+          echo "Using sdkmanager: $TOOLS"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "$TOOLS" >> "$GITHUB_PATH"
+          echo "$SDK/platform-tools" >> "$GITHUB_PATH"
+          yes | "$TOOLS/sdkmanager" --licenses > /dev/null 2>&1 || true
+          "$TOOLS/sdkmanager" --install "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          echo "sdk.dir=$SDK" > android/local.properties
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
