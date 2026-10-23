@@ -35,6 +35,31 @@
     oct: 9, october: 9, nov: 10, november: 10, dec: 11, december: 11
   };
 
+  async function readBlobText(blob) {
+    if (!blob) return '';
+    if (typeof blob.text === 'function') {
+      try {
+        const t = await blob.text();
+        if (t) return t;
+      } catch (e) { /* fall through to the readers */ }
+    }
+    if (typeof TextDecoder === 'function') {
+      try {
+        const buf = await readBlob(blob);
+        const t = new TextDecoder('utf-8').decode(new Uint8Array(buf));
+        if (t) return t;
+      } catch (e) { /* fall through to FileReader */ }
+    }
+    return new Promise(resolve => {
+      try {
+        const fr = new FileReader();
+        fr.onload = () => resolve(String(fr.result == null ? '' : fr.result));
+        fr.onerror = () => resolve('');
+        fr.readAsText(blob, 'utf-8');
+      } catch (e) { resolve(''); }
+    });
+  }
+
   function readBlob(blob) {
     if (!blob) return Promise.resolve(new ArrayBuffer(0));
     if (typeof blob.arrayBuffer === 'function') return blob.arrayBuffer();
@@ -63,7 +88,7 @@
       const ext = Docs.extensionOf(file.name);
       try {
         if (ext === 'txt' || ext === 'rtf') {
-          return { text: (await file.text()).slice(0, 300000) };
+          return { text: (await readBlobText(file)).slice(0, 300000) };
         }
         if (ext === 'docx' && window.mammoth) {
           const buf = await readBlob(file);
@@ -88,7 +113,7 @@
           return { text: '', image: true };
         }
         if (ext === 'doc') {
-          const txt = (await file.text()).replace(/[^\x20-\x7E\u0900-\u097F\n]+/g, ' ');
+          const txt = (await readBlobText(file)).replace(/[^\x20-\x7E\u0900-\u097F\n]+/g, ' ');
           return { text: txt.slice(0, 120000) };
         }
       } catch (e) {

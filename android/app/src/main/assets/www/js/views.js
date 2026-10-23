@@ -10,6 +10,7 @@
   const J = LJ.Jarvis;
   const App = LJ.App;
   const Docs = LJ.Docs;
+  const Bridge = LJ.Bridge;
 
   const esc = U.esc;
   const enc = obj => encodeURIComponent(JSON.stringify(obj || {}));
@@ -374,7 +375,7 @@
         field('Status', '<select class="input" id="cfStatus"><option value="active" ' + (v.status !== 'disposed' ? 'selected' : '') + '>Active</option><option value="disposed" ' + (v.status === 'disposed' ? 'selected' : '') + '>Disposed</option></select>') +
         field('Current stage / last order', '<textarea class="textarea" id="cfStage" placeholder="What happened on the last date, and what stands next">' + esc(v.stage || '') + '</textarea>', 'full') +
         field('Next hearing date', '<input class="input" type="date" id="cfNext" value="' + esc(v.nextHearing || '') + '">') +
-        field('Time', '<input class="input" type="time" id="cfTime" value="' + esc(m && m.nextTime ? m.nextTime : '') + '">') +
+        field('Time', '<input class="input" type="time" id="cfTime" value="' + esc(m && m.nextTime ? m.nextTime : (prefill.time || '')) + '">') +
         field('Tags', '<input class="input" id="cfTags" value="' + esc((v.tags || []).join(', ')) + '" placeholder="Criminal, Revenue">') +
         field('Notes for the chamber', '<input class="input" id="cfNotes" value="' + esc(v.notes || '') + '" placeholder="Anything you wish me to remember">') +
         '<details class="hi-details" ' + ((v.titleHi || v.clientHi || v.stageHi) ? 'open' : '') + '><summary>' + (I.fullHindi() ? 'हिंदी विवरण' : 'Hindi / bilingual details') + ' <span class="tiny muted">— used when the papers are in Hindi</span></summary>' +

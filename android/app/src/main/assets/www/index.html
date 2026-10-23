@@ -182,6 +182,7 @@
               Import documents
             </button>
             <button class="ghost-btn" data-action="import-folder">Import a folder</button>
+            <button class="ghost-btn" data-action="scan-device" title="Find every PDF and Word file already on the tablet">Scan tablet</button>
             <button class="ghost-btn" data-action="import-drive" title="Google Drive appears in the Android file picker">From Google Drive</button>
             <button class="ghost-btn" data-action="import-ecourts">e-Courts data</button>
             <span class="toolbar-spacer"></span>
@@ -228,6 +229,22 @@
 </div>
 
 <div class="modal-root" id="modalRoot" hidden></div>
+
+<div id="bootError" hidden style="position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;background:#070b12;padding:28px">
+  <div style="max-width:460px;text-align:center">
+    <p style="font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.18em;color:#c9a961;text-transform:uppercase;margin:0 0 14px">Legal Jarvis</p>
+    <h2 style="font-family:Georgia,serif;font-size:24px;color:#f2ead8;margin:0 0 10px;font-weight:500">The chamber console did not start.</h2>
+    <p style="color:#8b96a8;font-size:14px;line-height:1.6;margin:0 0 20px">Please close and reopen the app. If this persists, reinstall the APK; your records and papers remain on the tablet.</p>
+    <button onclick="location.reload()" style="padding:12px 22px;border-radius:10px;border:1px solid #c9a961;background:transparent;color:#e8cd8c;font-size:13px">Reload the console</button>
+  </div>
+</div>
+<script>
+(function(){
+  function show(){ var el=document.getElementById('bootError'); if(el && !window.__ljBooted){ el.hidden=false; el.style.display='flex'; } }
+  window.addEventListener('error', function(){ setTimeout(show, 300); });
+  setTimeout(show, 12000);
+})();
+</script>
 <div class="toast-root" id="toastRoot" aria-live="polite"></div>
 
 <script src="vendor/pdf.min.js"></script>

@@ -240,6 +240,21 @@
       });
     },
 
+    scanDevice() {
+      if (Native.available) return Native.call('scanDevice', {}, 300000).then(r => r || { files: [] }).catch(e => ({ files: [], error: String(e.message || e) }));
+      return Promise.resolve({ files: [], unavailable: true });
+    },
+
+    exactAlarmPermission() {
+      if (Native.available) return Native.call('setExactAlarmPermission', {}, 30000).then(r => r || {}).catch(() => ({}));
+      return Promise.resolve({});
+    },
+
+    storagePermission() {
+      if (Native.available) return Native.call('storagePermission', {}, 120000).then(r => r || { granted: false }).catch(() => ({ granted: false }));
+      return Promise.resolve({ granted: false, unavailable: true });
+    },
+
     scanFolder(treeUri) {
       if (Native.available) return Native.call('scanFolder', { treeUri }, 600000);
       return Promise.resolve({ files: [] });
@@ -316,8 +331,11 @@
       if (Native.available) return Native.call('cancelAlarm', { id }, 10000).catch(() => {});
       return Promise.resolve();
     },
-    setDailyBrief(morning, evening, enabled) {
-      if (Native.available) return Native.call('setDailyBrief', { morning, evening, enabled: !!enabled }, 15000).catch(() => {});
+    setDailyBrief(morning, evening, enabled, morningText, eveningText) {
+      if (Native.available) return Native.call('setDailyBrief', {
+        morning, evening, enabled: !!enabled,
+        morningText: morningText || '', eveningText: eveningText || ''
+      }, 15000).catch(() => {});
       return Promise.resolve();
     },
     notifyNow(title, body) {

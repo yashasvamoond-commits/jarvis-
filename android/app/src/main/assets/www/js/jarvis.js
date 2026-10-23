@@ -217,6 +217,27 @@
       return Jarvis.reply([{ text: out.join(' '), lang: 'en' }], actions, { kind: 'brief' });
     },
 
+    /* A short, useful line for the notification itself (not the spoken brief). */
+    briefNote(kind) {
+      const isEvening = kind === 'evening';
+      const st = Jarvis.stats();
+      const list = isEvening ? st.tomorrowList : st.todayList;
+      const day = isEvening ? 'tomorrow' : 'today';
+      const bits = [];
+      if (!list.length) {
+        bits.push('Nothing listed ' + day + ', Sir.');
+      } else {
+        const parts = list.slice(0, 3).map(h => {
+          const m = Repo.matter(h.matterId);
+          return (m ? Jarvis.displayName(m) : 'A matter') + ' at ' + (h.time ? I.time(h.time) : 'a time to be notified');
+        });
+        bits.push(n(list.length, 'listing') + ' ' + day + ': ' + parts.join('; ') + (list.length > 3 ? ' and ' + (list.length - 3) + ' more' : '') + '.');
+      }
+      if (st.overdue.length) bits.push(n(st.overdue.length, 'task') + ' overdue.');
+      if (st.dueSoon.length) bits.push('Next deadline: ' + (st.dueSoon[0].title || 'a filing') + ' on ' + I.shortDate(st.dueSoon[0].date) + '.');
+      return bits.join(' ').slice(0, 280);
+    },
+
     brief(kind) { return Jarvis.buildBrief(kind || (new Date().getHours() >= 17 ? 'evening' : 'morning')); },
 
     /* ---------------- cause lists ---------------- */
@@ -413,25 +434,58 @@
 
     /* ---------------- add / edit ---------------- */
     openAddCase(q) {
-      const prefill = {};
       const t = String(q || '');
-      let m = t.match(/\b(?:case|matter|केस|मामला)\s+(?:of|for|के\s+)?(.+?)(?:\s+(?:in|before|at|court|next|on)\b|$)/i);
-      if (m) {
-        const raw = U.clean(m[1]).replace(/[.?!]+$/, '');
-        if (raw && raw.length > 2 && !/^(add|new|जोड़ो|नया)$/i.test(raw)) prefill.title = U.titleCase(raw);
-      }
-      const vs = t.match(/(.+?)\s+(?:v\.?s\.?|versus|बनाम)\s+(.+?)(?:\s+(?:in|before|at|next|on)\b|$)/i);
-      if (vs) {
-        prefill.title = U.titleCase(U.clean(vs[1])) + ' v. ' + U.titleCase(U.clean(vs[2]));
-        prefill.client = U.titleCase(U.clean(vs[1]));
-        prefill.opposite = U.titleCase(U.clean(vs[2]));
-      }
-      const court = Docs.detectCourt(t, '');
-      if (court) prefill.court = court.court;
+      const prefill = {};
       const when = parseWhen(t);
-      if (when) prefill.nextHearing = when.iso;
-      if (I.fullHindi()) return Jarvis.reply([{ text: 'बिल्कुल, ' + addressHi() + '। नए मामले का विवरण भरने के लिए मैंने प्रपत्र खोल दिया है। आप जो जानकारी जानते हैं, वही पर्याप्त है; शेष मैं स्वयं व्यवस्थित कर लूँगा।', lang: 'hi' }], [{ label: 'मामला जोड़ें', act: 'open-add-case', prefill }], { openAddCase: prefill });
-      return Jarvis.reply([{ text: 'Very good, ' + addr() + '. I have opened the register. Give me whatever you know — the rest I shall arrange in order. Once entered, this matter will be tracked exactly as an e-Courts matter.' }],
+      const courtHit = Docs.detectCourt(t, '');
+
+      /* Strip the command scaffolding: "add a case titled …" */
+      let body = t
+        .replace(/^\s*(?:please\s+)?(?:add|create|register|open|make|start|बनाओ|जोड़ो|दर्ज)\s+/i, '')
+        .replace(/^\s*(?:an?|the|new|नया|नई|एक)\s+/i, '')
+        .replace(/^\s*(?:case|matter|केस|मामला)\s*/i, '')
+        .replace(/^\s*(?:titled|titled\s+as|called|named|by\s+the\s+name\s+of|नाम\s+से)\s+/i, '')
+        .replace(/^\s*[:\-–—]\s*/, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      /* The title ends where the court or the next date begins. */
+      let title = body
+        .replace(/\s+(?:in|before|at)\s+(?:the\s+)?(?:hon'?ble\s+)?(?:high\s+court|rajasthan\s+high\s+court|district|sessions|civil|family|revenue|sdm|cat|nclt|drt|consumer|labour|police|उच्च\s+न्यायालय|जिला|सत्र|सिविल|परिवार|राजस्व)[\s\S]*$/i, '')
+        .replace(/\s+(?:with\s+)?(?:next|coming|having\s+next)\s+(?:date|hearing|listing|peshi|तारीख|पेशी)[\s\S]*$/i, '')
+        .replace(/\s+on\s+\d{1,2}(?:st|nd|rd|th)?\s+\w+[\s\S]*$/i, '')
+        .replace(/[.,;:\s]+$/, '');
+
+      const vs = title.match(/^(.+?)\s+(?:v\.?s?\.?|versus|बनाम)\s+(.+)$/i);
+      if (vs) {
+        const a = U.titleCase(U.clean(vs[1])), b = U.titleCase(U.clean(vs[2]));
+        title = a + ' v. ' + b;
+        prefill.client = a;
+        prefill.opposite = b;
+      } else {
+        title = U.titleCase(U.clean(title));
+      }
+      title = title.replace(/\s+V\.\s+/g, ' v. ');
+      if (title && title.length > 2 && !/^(add|new|case|matter|नया|मामला)$/i.test(title)) prefill.title = title;
+
+      if (courtHit) {
+        prefill.court = courtHit.court;
+        prefill.courtType = courtHit.courtType;
+        prefill.courtHi = courtHit.courtHi;
+      }
+      if (when) {
+        prefill.nextHearing = when.iso;
+        if (when.time) prefill.time = when.time;
+      }
+      if (/criminal|आपराधिक/i.test(t)) prefill.tags = ['Criminal'];
+      else if (/revenue|राजस्व/i.test(t)) prefill.tags = ['Revenue'];
+      else if (/civil|सिविल/i.test(t)) prefill.tags = ['Civil'];
+
+      const spoke = prefill.title
+        ? ' I have entered “' + prefill.title + '”' + (prefill.court ? ', before the ' + prefill.court : '') + (prefill.nextHearing ? ', listed ' + I.date(prefill.nextHearing, { weekday: false }) : '') + '. Please confirm or complete the particulars.'
+        : ' Give me whatever you know — the rest I shall arrange in order.';
+      if (I.fullHindi()) return Jarvis.reply([{ lang: 'hi', text: 'बिल्कुल, ' + addressHi() + '। नए मामले का विवरण भरने के लिए मैंने प्रपत्र खोल दिया है।' + (prefill.title ? ' शीर्षक “' + prefill.title + '” भर दिया है।' : '') + ' आप जो जानकारी जानते हैं, वही पर्याप्त है।' }], [{ label: 'मामला जोड़ें', act: 'open-add-case', prefill }], { openAddCase: prefill });
+      return Jarvis.reply([{ text: 'Very good, ' + addr() + '.' + spoke + ' Once entered, this matter will be tracked exactly as an e-Courts matter.' }],
         [{ label: 'Add matter', act: 'open-add-case', prefill }], { openAddCase: prefill });
     },
 

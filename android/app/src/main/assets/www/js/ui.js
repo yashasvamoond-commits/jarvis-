@@ -46,6 +46,8 @@
 
     /* ---------------- boot ---------------- */
     async init() {
+      if (App._booting || App._booted) return;
+      App._booting = true;
       App.els = {
         viewTitle: document.getElementById('viewTitle'),
         viewEyebrow: document.getElementById('viewEyebrow'),
@@ -113,6 +115,11 @@
       App.scheduleAlarms();
       App.setupDailyBriefs();
       App.booted = true;
+      App._booted = true;
+      App._booting = false;
+      window.__ljBooted = true;
+      const bootErr = document.getElementById('bootError');
+      if (bootErr) bootErr.hidden = true;
       App.showWelcome();
       setTimeout(App.maybeAutoBrief, 1200);
       window.addEventListener('beforeunload', () => { try { Bridge.stopSpeaking(); } catch (e) {} });
@@ -244,7 +251,11 @@
         case 'import-folder': return App.startImport('folder');
         case 'import-drive': return App.startImport('files');
         case 'import-ecourts': return App.openEcourtsImport();
-        case 'rescan-folders': case 'rescan-now': return App.rescanLinked();
+        case 'rescan-folders': return App.rescanLinked();
+        case 'scan-device': return App.scanDevice();
+        case 'scan-grant': return App.scanGrant();
+        case 'scan-now': return App.scanNow();
+        case 'exact-alarm': return App.exactAlarm();
         case 'pick-ecourts': return App.pickEcourts();
         case 'confirm-clear-samples': return App.doClearSamples();
         case 'confirm-wipe': return App.doWipe();
@@ -538,6 +549,13 @@
       if (reply.openHearing) setTimeout(() => LJ.Views.openHearingForm(reply.openHearing.matterId, reply.openHearing), 420);
       if (reply.openReminder) setTimeout(() => LJ.Views.openReminderForm(reply.openReminder), 420);
       if (reply.openTask) setTimeout(() => LJ.Views.openTaskForm(null, reply.openTask), 420);
+      if (S.get('handsFree') && !App.muted && !reply.silent) {
+        speakPromise.then(() => setTimeout(() => {
+          if (App.listen.active || App.state.importing) return;
+          if (App._sheets && App._sheets.length) return;
+          App.startListening();
+        }, 650));
+      }
       if (App.state.speakDraft) App.state.speakDraft = false;
     },
 
@@ -768,6 +786,93 @@
       } catch (e) {}
     },
 
+    /* ---------------- whole-tablet scan ---------------- */
+    async scanDevice() {
+      if (!Bridge.available) {
+        App.openSheet({
+          eyebrow: 'Archive', title: 'Scan the whole tablet',
+          sub: 'This works in the installed Android app.',
+          narrow: true,
+          body: '<p class="form-note" style="margin-top:0">Android grants an app access only to the folders you choose. In the installed Legal Jarvis app you may give one-time “All files access”, and I shall then find every PDF and Word document already on the tablet and file it by court, case and type.</p>',
+          foot: '<button class="primary-btn" data-action="close-sheet">Understood</button>'
+        });
+        return;
+      }
+      try {
+        const perm = await Bridge.storagePermission();
+        if (perm && perm.granted) { App.scanNow(); return; }
+        App.scanSheet();
+      } catch (e) {
+        App.toast('Android would not open the access screen. Please use the file picker instead.', 'err', 5000);
+      }
+    },
+
+    scanSheet() {
+      App.openSheet({
+        eyebrow: 'Archive', title: 'Find every paper on the tablet',
+        sub: 'One permission, then a single sweep of the tablet.',
+        narrow: true,
+        body:
+          '<p class="form-note" style="margin-top:0">Android normally hides the tablet’s folders from apps. With <strong>All files access</strong>, I can read the PDF and Word documents already stored there — in Downloads, Documents and your chamber folders — and file each one into the case archive.</p>' +
+          '<p class="form-note">I ignore photographs, music, videos and the app’s own archive. Documents are read on this tablet only; nothing is uploaded.</p>' +
+          '<p class="form-note">Grant the permission on the next screen, then return here and choose <strong>Scan now</strong>.</p>',
+        foot: '<button class="ghost-btn" data-action="close-sheet">Not now</button>' +
+          '<button class="ghost-btn" data-action="scan-grant">Grant access</button>' +
+          '<button class="primary-btn" data-action="scan-now">Scan now</button>'
+      });
+    },
+
+    async exactAlarm() {
+      if (!Bridge.available) { App.toast('Exact reminders are handled by the installed app.', 'err'); return; }
+      try {
+        await Bridge.exactAlarmPermission();
+        App.toast('If Android asks, allow “Alarms & reminders” for Legal Jarvis. I shall then arrive at the precise minute.', 'ok', 7000);
+      } catch (e) {
+        App.toast('Android would not open the alarm settings.', 'err');
+      }
+    },
+
+    async scanGrant() {
+      try {
+        const perm = await Bridge.storagePermission();
+        App.toast('Return to Legal Jarvis and tap Scan now.', 'ok', 6000);
+        if (perm && perm.granted) App.scanNow();
+      } catch (e) {
+        App.toast('The permission screen could not be opened.', 'err');
+      }
+    },
+
+    async scanNow() {
+      if (App.state.importing) { App.toast('One moment, Sir — the archive is already being filed.', 'err'); return; }
+      App.toast('Sweeping the tablet for documents, Sir…', 'ok', 6000);
+      let r;
+      try {
+        r = await Bridge.scanDevice();
+      } catch (e) {
+        App.toast('The tablet could not be scanned: ' + (e.message || e), 'err', 6000);
+        return;
+      }
+      if (r && r.needPermission) { App.scanSheet(); return; }
+      if (r && r.unavailable) { App.toast('Tablet-wide scanning is available in the installed app.', 'err'); return; }
+      const files = ((r && r.files) || []).filter(f => /\.(pdf|docx?|txt|rtf)$/i.test(f.name || ''));
+      if (!files.length) {
+        App.toast('No PDF or Word documents were found outside the archive, Sir.', 'ok', 5000);
+        return;
+      }
+      const fresh = files.filter(f => !Docs.isDuplicate(f));
+      if (!fresh.length) {
+        App.toast('All ' + files.length + ' documents on the tablet are already in the archive, Sir.', 'ok', 5000);
+        return;
+      }
+      App.closeTopSheet();
+      const batch = fresh.slice(0, 50);
+      const remainder = fresh.length - batch.length;
+      App.toast('Found ' + files.length + ' documents — filing ' + batch.length + ' new ones' +
+        (remainder ? ' (' + remainder + ' will follow on the next scan)' : '') + '.', 'ok', 6000);
+      await App.importList(batch, 'scan');
+      if (remainder) setTimeout(() => App.toast('There are ' + remainder + ' more papers to file, Sir. Tap Scan tablet again when convenient.', 'ok', 8000), 1500);
+    },
+
     /* ---------------- e-Courts import ---------------- */
     openEcourtsImport() {
       const sheet = App.openSheet({
@@ -842,7 +947,10 @@
         let m = null;
         if (cnr) m = Repo.data.matters.find(x => x.cnr && x.cnr.toLowerCase() === cnr.toLowerCase());
         if (!m && caseNo && court) m = Repo.data.matters.find(x => String(x.caseNo) === caseNo && (x.year === year || !year) && (x.court || '').toLowerCase() === court.toLowerCase());
-        if (!m && title) m = LJ.matchMatter(title, Repo.data.matters);
+        if (!m && title) {
+          const key = U.normalize(title);
+          m = Repo.data.matters.find(x => U.normalize(x.title) === key) || null;
+        }
         const fields = {
           title: title || (m && m.title),
           client: client || (m && m.client) || '',
@@ -983,7 +1091,8 @@
 
     setupDailyBriefs() {
       if (!S.get('notifications')) return;
-      Bridge.setDailyBrief(S.get('briefMorning'), S.get('briefEvening'), true);
+      Bridge.setDailyBrief(S.get('briefMorning'), S.get('briefEvening'), true,
+        J.briefNote('morning'), J.briefNote('evening'));
     },
 
     async askNotifyPermission() {
@@ -1022,17 +1131,19 @@
       if (changed) App.renderAll();
     },
 
+    autoBriefDue() {
+      if (!S.get('autoBrief')) return false;
+      if (!S.get('onboarded')) return false;
+      if (new Date().getHours() < 5) return false;
+      return S.get('lastBriefDate') !== U.todayISO();
+    },
+
     async maybeAutoBrief() {
-      if (!S.get('autoBrief')) return;
-      if (!S.get('onboarded')) return;
-      if (new Date().getHours() < 5) return;
-      const today = U.todayISO();
-      if (S.get('lastBriefDate') === today) return;
-      S.set('lastBriefDate', today);
-      setTimeout(() => {
-        if (document.visibilityState !== 'visible') return;
-        App.talk(J.buildBrief(new Date().getHours() >= 17 ? 'evening' : 'morning'));
-      }, 700);
+      if (!App.autoBriefDue()) return;
+      if (document.visibilityState !== 'visible') return;
+      S.set('lastBriefDate', U.todayISO());
+      if (App.listen.active) App.cancelListening(true);
+      App.talk(J.buildBrief(new Date().getHours() >= 17 ? 'evening' : 'morning'));
     },
 
     /* ---------------- forms / settings persistence ---------------- */
@@ -1158,7 +1269,7 @@
     /* ---------------- greeting / welcome ---------------- */
     showWelcome() {
       if (S.get('onboarded')) {
-        if (S.get('greetOnOpen') !== false) {
+        if (S.get('greetOnOpen') !== false && !App.autoBriefDue()) {
           setTimeout(() => {
             if (document.visibilityState !== 'visible') return;
             const st = J.stats();
@@ -1217,7 +1328,8 @@
           J.speakReply(J.reply([{ text, lang: I.fullHindi() ? 'hi' : 'en' }]), true);
         }, 500);
       }
-      setTimeout(App.maybeAutoBrief, 4000);
+      if (shouldSpeak) S.set('lastBriefDate', U.todayISO());
+      else setTimeout(App.maybeAutoBrief, 1500);
       App.askNotifyPermission();
     },
 

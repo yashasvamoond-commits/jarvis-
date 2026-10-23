@@ -194,7 +194,7 @@
         const url = await Bridge.renderPdf(d, page, 1200);
         if (url) {
           wrap.innerHTML = '<img src="' + url + '" alt="" style="max-width:100%;height:auto;box-shadow:0 10px 40px rgba(0,0,0,.5);background:#fff;border-radius:2px">' +
-            pageNav(page, DocsUI._preview.pages, d.id);
+            DocsUI.pageNav(page, DocsUI._preview.pages, d.id);
         } else {
           wrap.innerHTML = '<div class="no-preview">This PDF could not be rendered, Sir. <div class="pill-row" style="justify-content:center;margin-top:12px"><button class="primary-btn" data-action="open-external" data-id="' + esc(d.id) + '">Open in another app</button></div></div>';
         }
@@ -221,7 +221,7 @@
         await p.render({ canvasContext: ctx, viewport: vp }).promise;
         wrap.innerHTML = '';
         wrap.appendChild(canvas);
-        wrap.insertAdjacentHTML('beforeend', pageNav(page, pdf.numPages, d.id));
+        wrap.insertAdjacentHTML('beforeend', DocsUI.pageNav(page, pdf.numPages, d.id));
       } catch (e) {
         console.warn(e);
         wrap.innerHTML = '<div class="no-preview">This PDF could not be rendered here.</div>';

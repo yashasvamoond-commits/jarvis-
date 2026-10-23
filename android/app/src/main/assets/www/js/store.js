@@ -207,6 +207,9 @@
       speechPitch: 0.88,
       speechVolume: 1,
       autoSpeak: true,
+      greetOnOpen: true,
+      autoBrief: true,
+      handsFree: false,
       wakeChime: true,
       briefMorning: '08:30',
       briefEvening: '19:30',
@@ -477,25 +480,38 @@
   const MATTER_IGNORE = new Set(['rejoinder', 'reply', 'petition', 'plaint', 'application', 'order', 'judgment', 'judgement',
     'notice', 'draft', 'evidence', 'affidavit', 'vakalatnama', 'written', 'statement', 'document', 'documents', 'paper', 'papers',
     'hearing', 'hearingdate', 'date', 'court', 'legal', 'latest', 'recent', 'newest', 'yesterday', 'tomorrow', 'today',
-    'jodDo', 'wala', 'wali', 'batao', 'dikhao', 'kholo', 'chahiye', 'karna', 'kaun', 'kya', 'kab', 'kitne', 'जोड़ो', 'तारीख']);
+    'jodDo', 'wala', 'wali', 'batao', 'dikhao', 'kholo', 'chahiye', 'karna', 'kaun', 'kya', 'kab', 'kitne', 'जोड़ो', 'तारीख',
+    'petitioner', 'respondent', 'applicant', 'defendant', 'complainant', 'accused', 'appellant', 'plaintiff',
+    'filed', 'filing', 'copy', 'signed', 'final', 'dated', 'page', 'pages', 'versus']);
+
+  /* Words that appear in half the register and therefore identify nothing. */
+  const MATTER_GENERIC = new Set(['state', 'india', 'indian', 'rajasthan', 'jaipur', 'court', 'courts', 'high', 'district',
+    'sessions', 'session', 'civil', 'criminal', 'family', 'revenue', 'police', 'station', 'government', 'govt', 'union',
+    'department', 'officer', 'matter', 'matters', 'case', 'cases', 'advocate', 'client', 'through', 'about', 'shall']);
 
   function matchMatter(query, matters) {
     if (!query) return null;
-    const strong = tokens(query).filter(w => w.length >= 3 && !MATTER_IGNORE.has(w));
-    if (!strong.length) return null;
-    let best = null, bestScore = 0;
+    const sig = tokens(query).filter(w => w.length >= 3 && !MATTER_IGNORE.has(w) && !MATTER_GENERIC.has(w));
+    if (!sig.length) return null;
+    /* A single three-letter fragment is too weak to bind a whole matter. */
+    if (sig.length === 1 && sig[0].length < 4) return null;
+    const q = sig.join(' ');
+    let best = null, bestScore = 0, bestHits = 0;
     matters.forEach(m => {
+      const fields = [m.title || '', m.titleHi || '', m.client || '', m.clientHi || '',
+        m.cnr || '', (m.caseNo || '') + ' ' + (m.year || '')].join(' ');
       let s = 0;
-      s += scoreText(query, m.title || '') * 1.4;
-      s += scoreText(query, m.titleHi || '') * 1.4;
-      s += scoreText(query, m.client || '') * 1.6;
-      s += scoreText(query, m.clientHi || '') * 1.6;
-      s += scoreText(query, (m.caseNo || '') + ' ' + (m.year || ''));
-      s += scoreText(query, m.cnr || '') * 2;
-      s += scoreText(query, m.court || '') * 0.5;
-      if (s > bestScore) { bestScore = s; best = m; }
+      s += scoreText(q, m.title || '') * 1.4;
+      s += scoreText(q, m.titleHi || '') * 1.4;
+      s += scoreText(q, m.client || '') * 1.6;
+      s += scoreText(q, m.clientHi || '') * 1.6;
+      s += scoreText(q, (m.caseNo || '') + ' ' + (m.year || ''));
+      s += scoreText(q, m.cnr || '') * 2;
+      s += scoreText(q, m.court || '') * 0.5;
+      const hits = sig.filter(w => scoreText(w, fields) >= 6).length;
+      if (s > bestScore || (s === bestScore && hits > bestHits)) { bestScore = s; bestHits = hits; best = m; }
     });
-    return bestScore >= 8 ? best : null;
+    return (bestScore >= 8 && bestHits > 0) ? best : null;
   }
 
   /* ---------------- Demo PDF generator (valid, tiny, searchable) ---------------- */

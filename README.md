@@ -51,4 +51,5 @@ Requirements: JDK 17, Android SDK 35, Gradle 8.9+.
 
 - The sample chamber included on first launch is demonstration data. Say “clear sample data”, or use Setup → Backup & data → Clear samples, to remove it.
 - e-Courts does not offer a public API; Jarvis imports the CSV/JSON export from your e-Courts app (through Google Drive if you wish) and merges it into the register by CNR and case number.
-- Android's scoped storage means the app cannot silently read every folder on the tablet. Link a chamber folder once in Setup (or share papers to Legal Jarvis from any app) and it will rescan that folder each time it opens.
+- Android's scoped storage means an app cannot silently read every folder on the tablet. Two routes are provided: **link a chamber folder** once in Setup (it is rescanned each time the app opens), or tap **Scan tablet** in Documents and grant Android's one-time *All files access*. The second route sweeps Downloads, Documents and every visible folder for PDF and Word papers, ignores the app's own archive, and files what it finds. Nothing is uploaded.
+- The archive lives in the app's private external files directory. **Setup → Documents & folders → Open archive folder** copies that exact path to the clipboard so you can reach it with a file manager.

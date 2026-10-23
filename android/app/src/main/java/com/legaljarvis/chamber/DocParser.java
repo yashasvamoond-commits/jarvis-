@@ -29,10 +29,22 @@ final class DocParser {
     }
 
     static Result fromUri(Context c, Uri uri, String displayName) {
+        return fromUri(c, uri, displayName, null);
+    }
+
+    static Result fromUri(Context c, Uri uri, String displayName, String mime) {
         Result r = new Result();
         String name = displayName;
         if (name == null) name = "document";
         String ext = FileStore.extension(name);
+        if (ext.isEmpty() && mime != null) {
+            String m = mime.toLowerCase(java.util.Locale.ROOT);
+            if (m.contains("pdf")) ext = "pdf";
+            else if (m.contains("wordprocessingml")) ext = "docx";
+            else if (m.contains("msword")) ext = "doc";
+            else if (m.equals("text/plain")) ext = "txt";
+            else if (m.contains("rtf")) ext = "rtf";
+        }
         try (InputStream in = c.getContentResolver().openInputStream(uri)) {
             if (in == null) { r.error = "The file could not be opened"; return r; }
             switch (ext) {

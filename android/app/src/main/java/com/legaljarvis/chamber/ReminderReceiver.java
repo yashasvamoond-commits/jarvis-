@@ -22,10 +22,13 @@ public class ReminderReceiver extends BroadcastReceiver {
         if (kind.startsWith("briefing")) {
             String brief = kind.endsWith("morning") ? "morning" : "evening";
             content = Notifier.openApp(context, brief, id.hashCode() + 11);
-            String displayBody = "morning".equals(brief)
-                    ? "Good morning, Sir. Your briefing is ready — tap to have me read it."
-                    : "Good evening, Sir. Your briefing for tomorrow is ready — tap to have me read it.";
-            Notifier.show(context, ("daily_" + brief).hashCode(), "Legal Jarvis", displayBody, kind, content);
+            String displayBody = body != null && !body.trim().isEmpty()
+                    ? body
+                    : ("morning".equals(brief)
+                        ? "Good morning, Sir. Your briefing is ready — tap to have me read it."
+                        : "Good evening, Sir. Your briefing for tomorrow is ready — tap to have me read it.");
+            String displayTitle = "morning".equals(brief) ? "Legal Jarvis · morning briefing" : "Legal Jarvis · evening briefing";
+            Notifier.show(context, ("daily_" + brief).hashCode(), displayTitle, displayBody, kind, content);
             AlarmScheduler.scheduleNextDaily(context, kind);
         } else {
             content = Notifier.openApp(context, null, id.hashCode() + 11);

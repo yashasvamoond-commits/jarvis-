@@ -97,7 +97,8 @@ jobs:
 
             - Works fully offline; no account, no subscription, no data leaves the tablet.
             - English and Hindi, with a British Jarvis voice delivered by Android Text-to-Speech.
-            - Smart filing for PDF and Word documents, e-Courts import, diary, procedural tracking, reminders and twice-daily briefings.
+            - Smart filing for PDF and Word documents — including a one-tap sweep of the whole tablet under Android’s “All files access”.
+            - e-Courts and Google Drive import, diary, procedural tracking, checkable chamber tasks, reminders and twice-daily briefings.
 
             Built automatically from the `${{ github.sha }}` commit.
           files: dist/Legal-Jarvis.apk

@@ -13,6 +13,7 @@ import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.DocumentsContract;
@@ -62,7 +63,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.HashSet;
+import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 
 /**
@@ -80,6 +84,7 @@ public class MainActivity extends Activity {
     private static final int REQ_SAVE_DATA = 4104;
     private static final int REQ_MIC = 4201;
     private static final int REQ_NOTIF = 4202;
+    private static final int REQ_STORAGE = 4203;
 
     private WebView webView;
     private WebViewAssetLoader assetLoader;
@@ -94,7 +99,7 @@ public class MainActivity extends Activity {
     private boolean ttsReady = false;
     private boolean ttsFailed = false;
     private final List<Runnable> ttsQueue = new ArrayList<>();
-    private final Map<String, String> utteranceRequests = new HashMap<>();
+    private final Map<String, String> utteranceRequests = new ConcurrentHashMap<>();
     private int utteranceSeq = 0;
 
     /* speech recognition */
@@ -106,6 +111,7 @@ public class MainActivity extends Activity {
     private PendingPicker picker;
     private final List<String> pendingMic = new ArrayList<>();
     private final List<String> pendingNotify = new ArrayList<>();
+    private final List<String> pendingStorage = new ArrayList<>();
 
     private static class PendingPicker {
         String requestId;
@@ -233,6 +239,8 @@ public class MainActivity extends Activity {
                 case "pickFiles": pickFiles(id); return;
                 case "pickFolder": pickFolder(id); return;
                 case "scanFolder": scanFolder(id, p); return;
+                case "scanDevice": scanDevice(id); return;
+                case "storagePermission": storagePermission(id); return;
                 case "extractText": extractText(id, p); return;
                 case "importFile": importFile(id, p); return;
                 case "openFile": openFile(id, p); return;
@@ -337,6 +345,13 @@ public class MainActivity extends Activity {
 
                     @Override
                     public void onDone(String utteranceId) {
+                        String req = utteranceRequests.remove(utteranceId);
+                        if (req != null) sendOk(req, new JSONObject());
+                        emitTts("ttsEnd", utteranceId);
+                    }
+
+                    @Override
+                    public void onStop(String utteranceId, boolean interrupted) {
                         String req = utteranceRequests.remove(utteranceId);
                         if (req != null) sendOk(req, new JSONObject());
                         emitTts("ttsEnd", utteranceId);
@@ -565,6 +580,15 @@ public class MainActivity extends Activity {
             }
             pendingMic.clear();
             if (!granted) emitSpeechError("insufficient-permissions");
+        } else if (requestCode == REQ_STORAGE) {
+            for (String id : new ArrayList<>(pendingStorage)) {
+                try {
+                    JSONObject d = new JSONObject();
+                    d.put("granted", granted);
+                    sendOk(id, d);
+                } catch (Exception ignored) {}
+            }
+            pendingStorage.clear();
         } else if (requestCode == REQ_NOTIF) {
             for (String id : new ArrayList<>(pendingNotify)) {
                 try {
@@ -900,6 +924,105 @@ public class MainActivity extends Activity {
         }
     }
 
+    /* ---- whole-tablet scan (optional "All files access") ---- */
+    private boolean allFilesAllowed() {
+        if (Build.VERSION.SDK_INT < 30) {
+            return checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+        }
+        try {
+            return Environment.isExternalStorageManager();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private void storagePermission(String id) {
+        boolean granted = allFilesAllowed();
+        JSONObject d = new JSONObject();
+        try {
+            d.put("granted", granted);
+            d.put("canAsk", true);
+        } catch (Exception ignored) {}
+        if (!granted) {
+            if (Build.VERSION.SDK_INT >= 30) {
+                try {
+                    Intent i = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+                    i.setData(Uri.parse("package:" + getPackageName()));
+                    startActivity(i);
+                } catch (Exception e) {
+                    try { startActivity(new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)); }
+                    catch (Exception ignored) {}
+                }
+            } else {
+                pendingStorage.add(id);
+                requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, REQ_STORAGE);
+                return;
+            }
+        }
+        sendOk(id, d);
+    }
+
+    private void scanDevice(String id) {
+        if (!allFilesAllowed()) {
+            try {
+                JSONObject d = new JSONObject();
+                d.put("needPermission", true);
+                d.put("files", new JSONArray());
+                sendOk(id, d);
+            } catch (Exception ignored) {}
+            return;
+        }
+        io.execute(() -> {
+            try {
+                JSONArray files = new JSONArray();
+                Set<String> skip = new HashSet<>(Arrays.asList(
+                        "Android", "LegalJarvis", "LOST.DIR", "DCIM", "Movies", "Music", "Ringtones",
+                        "Alarms", "Notifications", "Podcasts", "recordings"));
+                File root = Environment.getExternalStorageDirectory();
+                walkDevice(root, root, files, skip, 0);
+                JSONObject d = new JSONObject();
+                d.put("files", files);
+                d.put("truncated", files.length() >= 1500);
+                sendOk(id, d);
+            } catch (Throwable e) {
+                fail(id, e.getMessage() == null ? "The tablet could not be scanned" : e.getMessage());
+            }
+        });
+    }
+
+    private void walkDevice(File root, File dir, JSONArray out, Set<String> skip, int depth) {
+        if (depth > 10 || out.length() >= 1500) return;
+        File[] kids;
+        try { kids = dir.listFiles(); } catch (Exception e) { return; }
+        if (kids == null) return;
+        Arrays.sort(kids);
+        for (File f : kids) {
+            if (out.length() >= 1500) return;
+            String name = f.getName();
+            if (name == null || name.startsWith(".")) continue;
+            if (f.isDirectory()) {
+                if (skip.contains(name)) continue;
+                walkDevice(root, f, out, skip, depth + 1);
+                continue;
+            }
+            String ext = FileStore.extension(name);
+            if (!(ext.equals("pdf") || ext.equals("doc") || ext.equals("docx")
+                    || ext.equals("rtf") || ext.equals("txt"))) continue;
+            long size = f.length();
+            if (size <= 0 || size > 80L * 1024 * 1024) continue;
+            try {
+                JSONObject o = new JSONObject();
+                o.put("uri", Uri.fromFile(f).toString());
+                o.put("name", name);
+                o.put("size", size);
+                o.put("lastModified", f.lastModified());
+                o.put("mime", FileStore.mimeFor(ext));
+                o.put("relativePath", root.toPath().relativize(f.toPath()).toString());
+                out.put(o);
+            } catch (Exception ignored) {}
+        }
+    }
+
     private void scanFolder(String id, JSONObject p) {
         String tree = p.optString("treeUri", "");
         if (tree.isEmpty()) { fail(id, "No folder is linked"); return; }
@@ -922,8 +1045,9 @@ public class MainActivity extends Activity {
         final Uri uri = Uri.parse(uriString);
         io.execute(() -> {
             try {
-                String name = FileStore.meta(MainActivity.this, uri).optString("name", "document");
-                DocParser.Result r = DocParser.fromUri(MainActivity.this, uri, name);
+                JSONObject meta = FileStore.meta(MainActivity.this, uri);
+                String name = meta.optString("name", "document");
+                DocParser.Result r = DocParser.fromUri(MainActivity.this, uri, name, meta.optString("mime", ""));
                 JSONObject d = new JSONObject();
                 d.put("text", r.text == null ? "" : r.text);
                 d.put("pages", r.pages);
@@ -1086,10 +1210,11 @@ public class MainActivity extends Activity {
     private void openArchiveFolder(String id) {
         try {
             String path = FileStore.root(this).getAbsolutePath();
-            Toast.makeText(this, "Archive: " + path, Toast.LENGTH_LONG).show();
-            Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-            i.setData(Uri.parse("package:" + getPackageName()));
-            startActivity(i);
+            try {
+                android.content.ClipboardManager cm = (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                if (cm != null) cm.setPrimaryClip(ClipData.newPlainText("Legal Jarvis archive", path));
+            } catch (Exception ignored) {}
+            Toast.makeText(this, "Archive path copied. " + path, Toast.LENGTH_LONG).show();
             JSONObject d = new JSONObject();
             d.put("path", path);
             sendOk(id, d);
@@ -1128,7 +1253,8 @@ public class MainActivity extends Activity {
     private void setDailyBrief(String id, JSONObject p) {
         try {
             AlarmScheduler.setDaily(this, p.optString("morning", "08:30"),
-                    p.optString("evening", "19:30"), p.optBoolean("enabled", true));
+                    p.optString("evening", "19:30"), p.optBoolean("enabled", true),
+                    p.optString("morningText", ""), p.optString("eveningText", ""));
             sendOk(id, new JSONObject());
         } catch (Exception e) {
             fail(id, e.getMessage());

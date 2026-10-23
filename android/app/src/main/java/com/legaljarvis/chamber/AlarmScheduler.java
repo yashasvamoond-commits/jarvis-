@@ -121,11 +121,18 @@ final class AlarmScheduler {
     }
 
     static void setDaily(Context c, String morning, String evening, boolean enabled) {
+        setDaily(c, morning, evening, enabled, "", "");
+    }
+
+    static void setDaily(Context c, String morning, String evening, boolean enabled,
+                         String morningText, String eveningText) {
         try {
             JSONObject times = new JSONObject();
             times.put("morning", morning == null || morning.isEmpty() ? "08:30" : morning);
             times.put("evening", evening == null || evening.isEmpty() ? "19:30" : evening);
             times.put("enabled", enabled);
+            times.put("morningText", morningText == null ? "" : morningText);
+            times.put("eveningText", eveningText == null ? "" : eveningText);
             prefs(c).edit().putString(KEY_TIMES, times.toString()).apply();
             cancelDaily(c);
             if (enabled) {
@@ -167,8 +174,11 @@ final class AlarmScheduler {
                 cal.add(Calendar.DAY_OF_YEAR, 1);
             }
             String id = morning ? "daily_morning" : "daily_evening";
-            String title = "Legal Jarvis";
-            String body = morning ? "Your morning briefing is ready, Sir." : "Your evening briefing is ready, Sir.";
+            String title = morning ? "Legal Jarvis · morning briefing" : "Legal Jarvis · evening briefing";
+            String custom = times.optString(morning ? "morningText" : "eveningText", "");
+            String body = custom != null && !custom.trim().isEmpty()
+                    ? custom
+                    : (morning ? "Your morning briefing is ready, Sir." : "Your evening briefing is ready, Sir.");
             setAlarm(c, id, cal.getTimeInMillis(), title, body, kind);
         } catch (Exception ignored) {}
     }

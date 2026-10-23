@@ -86,6 +86,7 @@
         '<button class="ghost-btn" data-action="save-misc">Save recognition</button>' +
         '<button class="ghost-btn" data-action="enable-notifications">Allow notifications</button>' +
         '<button class="ghost-btn" data-action="test-notification">Send a test</button>' +
+        '<button class="ghost-btn" data-action="exact-alarm">Allow exact reminders</button>' +
         '</div></section>' +
 
         /* documents */
@@ -101,12 +102,13 @@
         '<button class="primary-btn" data-action="add-linked-folder">Link a folder</button>' +
         '<button class="ghost-btn" data-action="rescan-folders">Rescan now</button>' +
         '<button class="ghost-btn" data-action="import-files">Import files</button>' +
+        '<button class="ghost-btn" data-action="scan-device">Scan whole tablet</button>' +
         '</div>' +
         '<div class="pill-row">' +
         '<button class="ghost-btn" data-action="open-archive-folder">Open archive folder</button>' +
         '<button class="ghost-btn" data-action="export-archive">Export archive (zip)</button>' +
         '</div>' +
-        '<p class="form-note">Documents are copied into a private archive on this tablet, in folders named by court, case and document type. Nothing is uploaded anywhere.</p>' +
+        '<p class="form-note">Documents are copied into a private archive on this tablet, in folders named by court, case and document type. Nothing is uploaded anywhere. If your papers already sit in many folders, use <strong>Scan whole tablet</strong> — Android will ask for one-time “All files access”, after which every PDF and Word document is found and filed.</p>' +
         '</section>' +
 
         /* ecourts */
