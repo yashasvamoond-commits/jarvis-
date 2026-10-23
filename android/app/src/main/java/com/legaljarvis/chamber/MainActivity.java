@@ -465,9 +465,9 @@ public class MainActivity extends Activity {
             }
             String utteranceId = "lj_" + (++utteranceSeq);
             utteranceRequests.put(utteranceId, id);
-            HashMap<String, String> params = new HashMap<>();
-            params.put(TextToSpeech.Engine.KEY_PARAM_VOLUME, String.valueOf(volume));
-            params.put(TextToSpeech.Engine.KEY_PARAM_STREAM, String.valueOf(AudioManager.STREAM_MUSIC));
+            Bundle params = new Bundle();
+            params.putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, volume);
+            params.putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_MUSIC);
             int result = tts.speak(text, TextToSpeech.QUEUE_FLUSH, params, utteranceId);
             if (result == TextToSpeech.ERROR) {
                 utteranceRequests.remove(utteranceId);
